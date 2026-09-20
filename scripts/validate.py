@@ -12,6 +12,7 @@ from urllib.parse import unquote, urlsplit
 REQUIRED = (
     'SKILL.md', 'VERSION', 'VERSIONING.md', 'CHANGELOG.md', 'README.md',
     'references/orchestration.md', 'references/adjudication.md',
+    'references/presentation-transition.md', 'research/presentation-engine-notes.md',
     'references/first-visit.md', 'references/critic-scoring.md',
     'references/human-playtest.md', 'references/experience-regression.md',
     'references/benchmarks.md', 'agents/blind-player.md', 'tests/acceptance.md',
@@ -62,9 +63,23 @@ def check(root: Path) -> list[str]:
     numbers = re.findall(r'^(\d+)\. \*\*', phase5, re.M)
     if numbers != [str(i) for i in range(1, 11)]:
         errors.append('总报告不再是固定十节')
-    for name in ('references/orchestration.md', 'references/adjudication.md'):
+    for name in ('references/orchestration.md', 'references/adjudication.md',
+                 'references/presentation-transition.md'):
         if f']({name})' not in skill:
             errors.append(f'主入口未直接连接：{name}')
+    orchestration = texts[root / 'references/orchestration.md']
+    presentation = texts[root / 'references/presentation-transition.md']
+    adjudication = texts[root / 'references/adjudication.md']
+    for marker in ('| R09 表现适配与转段 |', '→ R05 → 按需 R09 → R06 → R07'):
+        if marker not in orchestration:
+            errors.append('R09 调用卡缺失或调度顺序改变')
+    for n in range(1, 11):
+        if len(re.findall(r'^- \*\*V' + f'{n:02}' + r' ', presentation, re.M)) != 1:
+            errors.append(f'R09 V{n:02} 缺失或重复')
+    if '路线建议不计入 P0/P1/P2' not in adjudication:
+        errors.append('路线决策与缺陷的分流约定缺失')
+    if '不安装引擎' not in presentation or '没有图形/客户端产物只能交计划' not in orchestration:
+        errors.append('R09 只读或未实测边界缺失')
     if f'**{version}**' not in texts[root / 'README.md']:
         errors.append('README 当前版本不一致')
     if f'## [{version}]' not in texts[root / 'CHANGELOG.md']:
@@ -85,16 +100,30 @@ def check(root: Path) -> list[str]:
 
 
 def self_test(root: Path) -> int:
-    """在临时副本破坏五种契约，验证不会错误放行。"""
+    """在临时副本破坏九种契约，验证不会错误放行。"""
+    def replace_text(base: Path, name: str, old: str, new: str) -> None:
+        target = base / name
+        text = target.read_text(encoding='utf-8')
+        target.write_text(text.replace(old, new), encoding='utf-8')
+
+    def append_text(base: Path, name: str, suffix: str) -> None:
+        target = base / name
+        target.write_text(target.read_text(encoding='utf-8') + suffix, encoding='utf-8')
+
     mutations = {
-        '版本失配': lambda p: (p / 'VERSION').write_text('9.9.9\n'),
+        '新视角附件缺失': lambda p: (p / 'references/presentation-transition.md').unlink(),
+        '新视角入口断开': lambda p: replace_text(p, 'SKILL.md',
+            '](references/presentation-transition.md)', '](references/benchmarks.md)'),
+        '轮次顺序损坏': lambda p: replace_text(p, 'references/orchestration.md',
+            '→ R05 → 按需 R09 → R06 → R07', '→ R05 → R06 → R07 → R09'),
+        '路线分流缺失': lambda p: replace_text(p, 'references/adjudication.md',
+            '路线建议不计入 P0/P1/P2', '路线建议'),
+        '版本失配': lambda p: (p / 'VERSION').write_text('9.9.9\n', encoding='utf-8'),
         '核心附件缺失': lambda p: (p / 'references/adjudication.md').unlink(),
-        '悬空链接': lambda p: (p / 'README.md').write_text(
-            (p / 'README.md').read_text() + '\n[错误](absent-file.md)\n'),
-        '主入口过长': lambda p: (p / 'SKILL.md').write_text(
-            (p / 'SKILL.md').read_text() + '\n' * 421),
-        '十节结构损坏': lambda p: (p / 'SKILL.md').write_text(
-            (p / 'SKILL.md').read_text().replace('10. **顺手记录的 bug**', '11. **顺手记录的 bug**')),
+        '悬空链接': lambda p: append_text(p, 'README.md', '\n[错误](absent-file.md)\n'),
+        '主入口过长': lambda p: append_text(p, 'SKILL.md', '\n' * 421),
+        '十节结构损坏': lambda p: replace_text(p, 'SKILL.md',
+            '10. **顺手记录的 bug**', '11. **顺手记录的 bug**'),
     }
     for label, mutate in mutations.items():
         with tempfile.TemporaryDirectory() as directory:

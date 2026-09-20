@@ -1,9 +1,9 @@
 # game-design-review
 
 游戏策划视角的黑盒试玩评审 skill：**设计哪里不成立、陌生玩家能否进入玩法、当前版本值不值得玩**，分别取证，不能用“没有 bug”替代。
-保留四把尺子、阶段校准、保留/重做/观察标签、P0/P1/P2、红队和十节诊断报告；新增首访盲玩、真人校准、体验回归及非官方媒体评分。
+保留四把尺子、阶段校准、保留/重做/观察标签、P0/P1/P2、红队和十节诊断报告；新增首访盲玩、真人校准、体验回归、非官方媒体评分，以及 R09 表现适配与转段路线。
 
-当前整包版本：**0.3.0**。版本源见 [VERSION](VERSION)，变化见 [CHANGELOG](CHANGELOG.md)，固定版本与升级规则见 [VERSIONING](VERSIONING.md)。
+当前整包版本：**0.4.0**。版本源见 [VERSION](VERSION)，变化见 [CHANGELOG](CHANGELOG.md)，固定版本与升级规则见 [VERSIONING](VERSIONING.md)。
 
 ## 一、目录与加载边界
 
@@ -14,6 +14,7 @@ game-design-review/
 │   └── blind-player.md              # 隔离首访执行者的最小角色卡，不读主评审答案
 ├── references/
 │   ├── orchestration.md             # 总控、轮次、隔离、状态交接、停止规则
+│   ├── presentation-transition.md  # 表现适配、最低 UX、图形切片与按需技术路线
 │   ├── adjudication.md              # 候选→唯一问题台账→P0/P1/P2
 │   ├── benchmarks.md                # 同约束游戏参照
 │   ├── first-visit.md               # 自由首访、目标任务、最少辅助、理解链
@@ -25,6 +26,7 @@ game-design-review/
 ├── tests/acceptance.md               # 协议验收场景，不冒充实际试玩
 └── research/
     ├── RESEARCH.md                   # 历史设计取舍与后续进度
+    ├── presentation-engine-notes.md # UI 风格及工具职责的一手资料；按需读取
     └── ign-review-study.md          # 官方方法核查、四篇满分及两篇对照样本
 ```
 
@@ -40,8 +42,10 @@ game-design-review/
 | 安排真人试玩、校准 AI | [真人协议](references/human-playtest.md) | 真实观察及分歧；没有参与者/记录只出计划 |
 | 修改后体验回归 | [回归协议](references/experience-regression.md) | 固定路径与新盲玩分别验收、亮点保护、可追溯回归卡 |
 | AI IGN、IGN 风格评分、给游戏打分 | [评分协议](references/critic-scoring.md) | 带证据的原创媒体评论、1–10 整数档；原型暂评/完整版本/不评分分开 |
+| 表现形态、UI/UX 取舍、像素转段、技术路线 | [R09 协议](references/presentation-transition.md)，按需读 [研究](research/presentation-engine-notes.md) | 当前问题回接四尺；路线、缺口和最小验证单列，不自动判 P0 或迁移 |
 
-请求“全部/完整/多角度”时：R01 首访 → R02 交互 → R03 策略 → R04 经济/回访 → R05 世界/文字 → R06 红队 → R07 综合；要求打分才加 R08。不存在的系统不强加，时间不足的系统未测。真人测试仅在有获授权参与者/证据时执行，不伪造也不承诺后台完成。
+请求“全部/完整/多角度”时：R01 首访 → R02 交互 → R03 策略 → R04 经济/回访 → R05 世界/文字 → 按需 R09 表现/转段 → R06 红队 → R07 综合；要求打分才加 R08。不存在的系统不强加，时间不足的系统未测。真人测试仅在有获授权参与者/证据时执行，不伪造也不承诺后台完成。
+R09 是稳定新增 ID，不重编号 R01–R08；文字/混合原型完整里程碑默认包含适配与转段检查，局部迭代不自动扩张。技术选型仅在明确请求或发布硬约束下执行，默认比较保留当前栈与至多两个候选。
 主 skill 不适用于纯 bug 测试或代码审查；评分不是诊断清单算术平均，总分不能掩盖核心 P0。
 
 总控先读 [编排协议](references/orchestration.md)，综合读 [裁决协议](references/adjudication.md)。四尺是判据、轮次是视角；同版证据可复用，但不算重复复现。每轮短报告保留分歧，最终只维护一份 `findings.md`。
@@ -60,6 +64,9 @@ game-design-review/
 
 用户不必点名各附件。没有隔离能力不能声称独立新手，没有浏览器能力不冒充实际试玩。
 
+
+表现与转段：
+> 用 game-design-review 评估这版文字原型的 UI/UX 应补到什么程度，文字是否妨碍验证下一项玩法。保留现有技术栈作为候选；有现成图形切片才对照，否则只出制作与验收计划。将当前 P0/P1/P2、未测空间玩法与未来路线分开，不为了像素化而重写。
 
 首次访问：
 > 用 game-design-review 对这个游戏入口做独立首访盲玩。先无提示探索，再做最少辅助对照；不要把策划、正确路线或旧报告交给首访执行者。给出十节短报告和有证据的体验回归卡。
@@ -91,7 +98,7 @@ game-design-review/
 
 获授权后在被评项目保存 `docs/reviews/<game-build>/<run-id>/`：`run.md`、`rounds/`、`evidence/`、`findings.md`、`report.md`、`regression.md`，评分时加 `critic.md`。
 `run.md` 记录 skill_version、skill_commit、game_build、report_schema、critic_scale、权限、能力与实际覆盖；原型暂评和完整版本分开。未授权归档时使用同名会话分节，不编造文件链接。
-每轮报告只描述该视角；总报告保留十节并引用唯一最终问题 ID，避免多个清单互相矛盾。严重度、置信度、转段和修复次序分开，不投票平均、不机械取最严意见。
+每轮报告只描述该视角；总报告保留十节并引用唯一最终问题 ID，避免多个清单互相矛盾。R09 的路线决策以 R09-Axx 保留在 rounds/R09.md，引用到第 8/9 节，不计问题数、不改变 report_schema: 1 或 critic_scale: 1。严重度、置信度、转段和修复次序分开，不投票平均、不机械取最严意见。
 
 ## 八、自检与当前边界
 
