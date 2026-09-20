@@ -1,66 +1,64 @@
 # 调研记录（2026-09-20）
 
-本文件记录 skill v0.1–v0.2 背后的调研过程：查了什么、核实了什么、采纳了什么、放弃了什么。供后续迭代（以及外部模型定向优化）理解设计意图。
+本文件保留 v0.1–v0.2 的历史设计背景；第 1–7 节中的判断、数量和“已知空白”不代表 v0.3.0 当前状态。更新说明见第 8 节；现行规则以主 SKILL 为准。
 
 ## 1. 问题起源
 
-用户发现：让 AI 反复测试游戏，它始终测不出"整个游戏是整页切换式导航，不像个游戏"这类问题。原因不是模型不行，而是**验收缺基准**——bug 测试的隐含标准是"能跑、无报错"，而"打开背包应该是弹窗"是范式错误，只能用显式的范式基准去抓。结论：先立尺子（范式清单 + 可玩性启发式 + 核心循环），再固化成规范流程与 skill。
+用户发现：让 AI 反复测试游戏，它始终测不出“整个游戏是整页切换式导航，不像个游戏”这类问题。早期归因为验收缺基准：bug 测试只查能否运行，而策划评审还需验证交互范式、选择和循环。
+后续修正：不能把“URL 改变”或“没有弹窗”本身当设计错误，必须查游戏连续性和行动上下文是否真实受损；坚持先立尺子，再黑盒试玩。
 
-## 2. 现成 skill / 工具生态扫描
+## 2. 现成 skill / 工具生态扫描（历史记录，未在本轮重新统计）
 
-**skills.sh 注册表**（`npx skills find`，关键词：playtest / game qa / game acceptance / gamedev / game testing）：
-
-- 游戏验收类：最高的是 `donchitos/claude-code-game-studios@playtest-report`（450 装机）。实读其内容后弃用：绑死该仓库私有的 `production/` 目录结构与 director-gates 体系，非通用。其余（playtest-review、game-qa、game-demo-feedback-triage 等）装机量 1–300，来源不明，按"低于 100 装机要警惕"标准视为噪音。
-- 游戏开发类：`gamedev-skills/awesome-gamedev-agent-skills` 合集最成体系（单 skill 3–4.4K 装机），但条目全是 Unity / Unreal / Godot / Three.js 引擎向；`higgsfield-game-generation`（26.7K）是平台自己的 AI 资产生成，无关。
-- 结论：**无成熟通用的"游戏策划验收" skill → 自建。**
-
-**GitHub**（gh search，关键词：playtest / game design review / games user research / game ux）：
-
-- playtest 相关仓库均为工具性质（遥测、录制、引擎内 MCP：robloxstudio-mcp 242★、godot-mcp 166★、Viewback 48★ 等），无方法论级仓库。
-- "game design review" 直接命中的仓库全部 0–1★。
-- 收进资源库：`Roobyx/awesome-game-design`（650★，经典 GDD 存档 + postmortem 大全）。
+早期调研使用 skills.sh 与 GitHub 的 playtest / game QA / game acceptance / game design review 等关键词查找已有工具。候选多为绑定特定项目工作流、引擎或遥测的工具，未直接满足本项目的通用黑盒策划评审需求，因此选择自建。
+历史候选包括 donchitos/claude-code-game-studios、gamedev-skills/awesome-gamedev-agent-skills、higgsfield-game-generation，以及不同引擎的浏览器/MCP 测试工具。
+本轮不复核安装量、星数、排名或生态覆盖，不将旧数字当现状，也不以流行程度代替质量判断。历史“无成熟通用工具”仅代表当时搜索范围内未找到合用方案，不是对所有工具的断言。
 
 ## 3. 直接借鉴的开源工作
 
-`Shupianmaka/codex-game-ux-skills`（游戏交互易用性评估，中文，实读其 SKILL.md 与 evaluation-framework.md）。借鉴四点：
+历史调研参考 `Shupianmaka/codex-game-ux-skills` 的中文技能及评估框架，保留四个方向：观察先于判断、动态证据边界、不同玩家阶段、显式保护亮点。
+本仓库独立维持 P0/P1/P2 与转段标签；修复难度不参与严重度裁决，不把外部框架的全部量表机械搬入。
 
-1. **观察先于判断**：先客观描述"看到了什么"，再写"可能导致什么体验影响"。
-2. **置信度标签**（确认/疑似/待确认）：静态素材证明不了动效、音效是否存在，不能从截图断言"没有反馈"。
-3. **玩家阶段差异**（新手/中度/硬核）：三者关注点不同，分析"设计偏向服务谁、哪类玩家损耗最大"。
-4. **亮点保留**：只报问题的报告会让后续改动误伤好设计。
+## 4. 方法论来源与后续校正
 
-其十大评估维度、P0–P3 分级、实现难度标注亦作为对照参考（本 skill 采用 P0/P1/P2 三级 + 低/中/高实现难度）。
-
-## 4. 方法论来源（一手核实）
-
-| 框架 | 出处 | 落点 |
+| 框架 | 出处 | 现行落点与限制 |
 |---|---|---|
-| PLAY 可玩性启发式 | Desurvire & Wiberg, 2009 | 尺子二（取对网页/原型期适用的子集） |
-| MDA 框架 | Hunicke, LeBlanc & Zubek, 2004 | 尺子四骨架（机制→动态→体验）+ 八类 Aesthetics 体验清单 |
-| A Theory of Fun | Raph Koster, 2004（好玩=学会新模式的快感） | 尺子三"好玩三问" |
-| GameFlow | Sweetser & Wyeth, 2005（经 OpenAlex/Crossref 核实存在） | 尺子三心流检查 |
-| 游戏 UI 四类型（diegetic/non-diegetic/spatial/meta） | 游戏 UI 通用框架 | 尺子一 |
-| Games User Research 方法 | gamesuserresearch.com（GUR 行业社区） | 铁律"行为优先于观点"（玩家说的≠玩家做的）、无偏提问 → Phase 1 预期日志 |
+| HEP / PLAY | HEP（2004）；Desurvire & Wiberg（2009）的 PLAY | 四分组沿用历史组织；PLAY 2009 报告 48 项且表含重复，不混称四类 43 条 |
+| MDA | Hunicke, LeBlanc & Zubek, 2004 | 从体验线索追动态与机制，不把黑盒推测当源码事实 |
+| A Theory of Fun | Raph Koster, 2004 | 保留模式学习三问；不是排除叙事、表达与消遣的定义 |
+| GameFlow | Sweetser & Wyeth, 2005 | 八元素逐项可检查，但代理不能宣称证实真人心流 |
+| 游戏 UI 四类型 | diegetic / non-diegetic / spatial / meta | 信息与世界关系的描述框架，不是路由禁令 |
+| 游戏用户研究 | GUR 社区；新增协议见对应原始链接 | 区分真实行为、原话、观察和推断；模拟人设不是真人数据 |
 
-## 5. 参照游戏（对照基准，详见 benchmarks.md）
+## 5. 参照游戏
 
-- **Evennia web client**（最流行的开源 MUD 框架，官方文档核实）：单页结构——主文字流+输入行常驻，信息面板是可停靠窗口/标签，设置用弹窗，全程无页面跳转。MUD 形态的交互范式锚点。
-- **A Dark Room**（开源 HTML5，多来源核实）：纯文字但有节奏、渐进揭示、流动感——证明"文字"不等于"静态"。
-- Kittens Game（无图形的数值深度）、Universal Paperclips（阶段跃迁）、Candy Box（发现感）、Progress Quest（零决策反例）。
-- 像素期体裁参照：RimWorld / Factorio / Oxygen Not Included / Dwarf Fortress / Stardew Valley / Fallout Shelter。
+文字与 MUD 选材包括 A Dark Room、Kittens Game、Universal Paperclips、Candy Box、Evennia/Discworld 等；经营选材包括 RimWorld、Factorio、Oxygen Not Included 等。具体条目见 [参照库](../references/benchmarks.md)。
+参照必须补齐版本、路径及核验状态；Progress Quest 改作自动化与消遣的边界参照，不作为低决策必然失败的通用反例；A Dark Room iOS 不预设为文字到像素转型。
 
-## 6. 放弃的路径
+## 6. 放弃与保留的路径
 
-- 采用现成 playtest/QA skill：无可用的（见第 2 节）。
-- 给 skill 挂 Jev/小模型做自动分诊：评审判断本身是主模型职责，额外分诊层是过度设计。
-- 全文照抄 PLAY 43 条：条目过半对网页原型期不适用，整体载入会稀释执行质量；取子集并标注来源。
+- 不把绑定其他项目私有目录的技能原样套用；主 skill 保持通用黑盒评审。
+- 不挂额外的小模型只为重复分诊；本轮新角色卡只用于真正的信息隔离，不虚构独立评审员。
+- 不全文照抄启发式论文；现行版按适用体裁做可操作改编，合并重复，并记录不适用/未测。
+- 不以数学权重伪装媒体审美判断；评分模块单独记录适用范围、事实证据和推荐理由。
 
-## 7. 已知空白 / 下一步
+## 7. 历史已知空白及当前状态
 
-1. PLAY 完整条目只取了子集；GameFlow 八元素未逐条化。
-2. 增量/放置/经营玩法专属检查（时间墙、数字外显、加速器经济、离线收益体验）尚薄。
-3. 文字游戏专属启发式（文字流节奏、信息密度、空间感的文字营造、交互词一致性）尚薄。
-4. 红队模式的对抗深度可再加强（多评审员视角、persona 分轮试玩）。
-5. LLM 评审员的防漂移机制（越评越温和、忘记证据要求）可再加自查钩子。
+原待办是 PLAY 补全、GameFlow 八元素、增量经济、文字专属检查、红队与 LLM 防漂移。它们已进入上轮增强版主 SKILL；不能继续把旧待办当作全部未完成。
+仍需实测：这些工程化判据是否有较好的检出率、误报率与跨模型稳定性；没有真实样本不能声称已经验证。
 
-→ 以上为外部模型定向优化的输入方向。
+## 8. v0.3：独立首访、真人校准、回归与媒体评分
+
+- 主入口不迁移；新增路由，按任务读取附件，保留四把尺子与十节诊断结构。
+- [首访协议](../references/first-visit.md) 与 [最小盲玩角色卡](../agents/blind-player.md)：隔离项目答案、浏览器/服务端状态与评分预期，保留自由探索与最少辅助两段。
+- [真人协议](../references/human-playtest.md)：记录真实行为/原话/主持干预，区分校准与验证样本；无真人则只产计划。
+- [体验回归](../references/experience-regression.md)：固定路径与新盲玩两轨，保留亮点检查及版本证据。
+- [非官方媒体评分](../references/critic-scoring.md)：IGN 方法启发的整数语义档位，不是加权算法；原型暂评与完整版本分开，原始证据不足不评分。
+- [IGN 独立调研](ign-review-study.md)：记录官方规则、四篇 10 分样本与 9/7 分对照、读取限制和分站混版风险；不能冒称训练好了 IGN 分数预测器。
+
+本轮只落地技能协议与结构，未获得当前 MUD 的可玩入口，未产生它的实际评分、真人访谈或长期留存数据。
+下一步需在真实版本上跑通一轮，保留 AI/真人分歧及回归证据；浏览器执行器、自动调度与评分稳定性测试并未由文档本身实现。
+
+## 9. 0.3.0 编排接入与版本化
+
+本次将此前按需附件接入主入口，新增轮次编排、唯一问题台账、争议补证与双版本记录；保留四尺及十节总报告。协议升级按 VERSION/CHANGELOG 记录，完整调用见 README。
+静态验证与合成场景只验证文件/契约，不等于真实多代理和 MUD 端到端通过；宿主能力须在每次运行前核验。
