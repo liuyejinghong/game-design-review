@@ -16,8 +16,12 @@ REQUIRED = (
     'references/first-visit.md', 'references/critic-scoring.md',
     'references/human-playtest.md', 'references/experience-regression.md',
     'references/benchmarks.md', 'agents/blind-player.md', 'tests/acceptance.md',
+    'references/3d-gameplay.md', 'references/management-simulation.md',
+    'references/capability-review.md', 'references/management-baseline.md',
+    'research/management-capability-study.md', 'research/genre-baseline-transfer.md',
 )
-TRIGGERS = ('游戏验收', '试玩评审', '好不好玩', '像不像个游戏', '策划视角评估', '游戏感评审')
+TRIGGERS = ('游戏验收', '试玩评审', '好不好玩', '像不像个游戏', '策划视角评估', '游戏感评审',
+            '3D 游戏', '模拟经营', '模块功能')
 
 
 def check(root: Path) -> list[str]:
@@ -45,7 +49,7 @@ def check(root: Path) -> list[str]:
         errors.append('skill 名称改变或缺失')
     if not re.search(r'^metadata:\n  version: "' + re.escape(version) + r'"\n', front, re.M):
         errors.append('metadata.version 与 VERSION 不一致')
-    if '  report-schema: "1"' not in front:
+    if '  report-schema: "2"' not in front:
         errors.append('report-schema 与当前校验器契约不一致；升级时须同步校验器')
     match = re.search(r'^description: (.+)$', front, re.M)
     description = match.group(1) if match else ''
@@ -64,18 +68,37 @@ def check(root: Path) -> list[str]:
     if numbers != [str(i) for i in range(1, 11)]:
         errors.append('总报告不再是固定十节')
     for name in ('references/orchestration.md', 'references/adjudication.md',
-                 'references/presentation-transition.md'):
+                 'references/presentation-transition.md',
+                 'references/capability-review.md', 'references/management-baseline.md',
+                 'references/3d-gameplay.md', 'references/management-simulation.md'):
         if f']({name})' not in skill:
             errors.append(f'主入口未直接连接：{name}')
     orchestration = texts[root / 'references/orchestration.md']
     presentation = texts[root / 'references/presentation-transition.md']
     adjudication = texts[root / 'references/adjudication.md']
+    gameplay3d = texts[root / 'references/3d-gameplay.md']
+    management = texts[root / 'references/management-simulation.md']
     for marker in ('| R09 表现适配与转段 |', '→ R05 → 按需 R09 → R06 → R07'):
         if marker not in orchestration:
             errors.append('R09 调用卡缺失或调度顺序改变')
+    for label, marker in (('3D 空间与操控请求行', '| 3D 空间与操控 |'),
+                          ('模拟经营请求行', '| 模拟经营 |'),
+                          ('通用能力对照请求行', '| 同类成熟度 / 模块功能与机制差距 |'),
+                          ('3D 附件指针', '](3d-gameplay.md)'),
+                          ('经营附件指针', '](management-simulation.md)'),
+                          ('能力对照指针', '](capability-review.md)'),
+                          ('经营基准指针', '](management-baseline.md)')):
+        if marker not in orchestration:
+            errors.append(f'编排缺{label}')
     for n in range(1, 11):
         if len(re.findall(r'^- \*\*V' + f'{n:02}' + r' ', presentation, re.M)) != 1:
             errors.append(f'R09 V{n:02} 缺失或重复')
+    for n in range(1, 11):
+        if len(re.findall(r'^- \*\*TD' + f'{n:02}' + r' ', gameplay3d, re.M)) != 1:
+            errors.append(f'TD{n:02} 缺失或重复')
+    for n in range(1, 13):
+        if len(re.findall(r'^- \*\*MG' + f'{n:02}' + r' ', management, re.M)) != 1:
+            errors.append(f'MG{n:02} 缺失或重复')
     if '路线建议不计入 P0/P1/P2' not in adjudication:
         errors.append('路线决策与缺陷的分流约定缺失')
     if '不安装引擎' not in presentation or '没有图形/客户端产物只能交计划' not in orchestration:
@@ -100,7 +123,7 @@ def check(root: Path) -> list[str]:
 
 
 def self_test(root: Path) -> int:
-    """在临时副本破坏九种契约，验证不会错误放行。"""
+    """在临时副本破坏十八种契约，验证不会错误放行。"""
     def replace_text(base: Path, name: str, old: str, new: str) -> None:
         target = base / name
         text = target.read_text(encoding='utf-8')
@@ -124,6 +147,21 @@ def self_test(root: Path) -> int:
         '主入口过长': lambda p: append_text(p, 'SKILL.md', '\n' * 421),
         '十节结构损坏': lambda p: replace_text(p, 'SKILL.md',
             '10. **顺手记录的 bug**', '11. **顺手记录的 bug**'),
+        '3D 专项附件缺失': lambda p: (p / 'references/3d-gameplay.md').unlink(),
+        '经营专项附件缺失': lambda p: (p / 'references/management-simulation.md').unlink(),
+        '3D 专项入口断开': lambda p: replace_text(p, 'SKILL.md',
+            '](references/3d-gameplay.md)', '](references/benchmarks.md)'),
+        '经营专项入口断开': lambda p: replace_text(p, 'SKILL.md',
+            '](references/management-simulation.md)', '](references/benchmarks.md)'),
+        '通用协议附件缺失': lambda p: (p / 'references/capability-review.md').unlink(),
+        '通用入口断开': lambda p: replace_text(p, 'SKILL.md',
+            '](references/capability-review.md)', '](references/benchmarks.md)'),
+        '报告schema失配': lambda p: replace_text(p, 'SKILL.md',
+            '  report-schema: "2"', '  report-schema: "1"'),
+        'TD 条目重复': lambda p: append_text(p, 'references/3d-gameplay.md',
+            '\n- **TD01 重复条目\n'),
+        'MG 条目缺失': lambda p: replace_text(p, 'references/management-simulation.md',
+            '- **MG05 ', '- **MGX05 '),
     }
     for label, mutate in mutations.items():
         with tempfile.TemporaryDirectory() as directory:
