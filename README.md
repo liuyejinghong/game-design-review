@@ -2,11 +2,11 @@
 
 以游戏策划而非 QA 视角做的**黑盒试玩评审 skill**：选同类成熟作品当参照，逐个能力模块对照，检查功能与机制的有无、完成度与差距，并给出改进建议；有正证据的非典型替代设计照实认可，不因和参照不一样就判差。回答的是"设计成不成立、陌生玩家能否进入、这版值不值得继续玩"，不是"有没有 bug"。
 
-覆盖跨体裁与文字 / 2D / 3D / 灰盒表现、Web 与宿主提供的原生客户端。模拟经营另有一份按来源整理的候选基准（不是硬清单）；FPS 目前只是通用方法的一次有限迁移研究，不是全部 FPS 的标准。3D 空间与操控、模拟经营两组专项按需叠加，不新增轮次、尺子或评分；阶段校准（原型 → 表现完善 → 正式）、红队（试玩前锁定指控与反证条件）与媒体评分按需启用。
+覆盖跨体裁与文字 / 2D / 3D / 灰盒表现、Web 与宿主提供的原生客户端。模拟经营另有一份按来源整理的候选基准（不是硬清单）；FPS 目前只是通用方法的一次有限迁移研究，不是全部 FPS 的标准。3D 空间与操控、模拟经营两组专项按需叠加，不新增轮次、尺子或评分；[系统架构与内容管线](references/system-architecture-pipeline.md)（SA01–SA08）是另一类条件附件——只在明确请求系统架构/内容生产管线/AI 扩展性，或下一已承诺里程碑确实依赖内容扩充、状态恢复、时间结算等且有授权只读工程材料时，由 R09 在黑盒证据封存后只读承载，纯静态（只给源码/工程资料）也能交付范围内工程事实与未验证边界；不是第五把尺子，有源码或到里程碑不自动必查。阶段校准（原型 → 表现完善 → 正式）、红队（试玩前锁定指控与反证条件）与媒体评分按需启用。
 
-一次完整运行：先定靶锁定阶段、范围、参照与判据，再黑盒试玩、机制还原、对照评审、裁决和报告；判据在试玩前锁定，不看着结果改尺子。
+一次完整运行：先定靶锁定阶段、范围、参照与判据，再黑盒试玩、机制还原、对照评审、裁决和报告；判据在试玩前锁定，不看着结果改尺子。首次评审或无可信基线时可先做设计材料审查与最小可玩核验（材料先行，门槛只限有依赖缺口的环节，不取消深测）；线性、短局游戏按其体验结构评审，不强迫多圈长测。
 
-当前整包版本 **0.6.0**：版本源 [VERSION](VERSION)，变化见 [CHANGELOG](CHANGELOG.md)，固定与升级规则见 [VERSIONING](VERSIONING.md)。
+当前版本与最新已发布版本均为 **0.7.0**（发行标签 `v0.7.0`，[发行说明](https://github.com/liuyejinghong/game-design-review/releases/tag/v0.7.0)）；上一已发布版本为 **0.6.0**（`v0.6.0`）。版本源 [VERSION](VERSION)，变化见 [CHANGELOG](CHANGELOG.md)，固定与升级规则见 [VERSIONING](VERSIONING.md)。
 
 ## 三个分开的判断
 
@@ -14,7 +14,7 @@
 2. **与参照的差距**：对照结论——达到参照 / 部分达到 / 存在差距 / 替代成立 / 未能判定。按钮存在不等于达标；键位、命名或实现方式不同不是扣分项；"替代成立"要有同任务完成、成本与恢复、跨局面与最强不利例的正证据，自称创新不豁免已实证的问题。
 3. **真实体验损害**：只有对应证据确认的真实体验损害才按 P0 设计问题 / P1 摩擦 / P2 打磨裁决；技术故障单列为 bug，不因阻断自动升成 P0 设计问题。差距没有造成损害就留在对照表与建议里，不硬凑问题。
 
-过程遵守"观察先于判断、行为先于观点"：每条发现带版本、操作与实际响应证据；静态截图不能证明动态行为不存在。候选发现先经反证、再去重，才进最终台账；同一条证据可被多轮引用，但不算重复复现。本 skill 不适用于纯 bug 测试或代码审查。
+过程遵守"观察先于判断、行为先于观点"：每条发现带版本、操作与实际响应证据；静态截图不能证明动态行为不存在。候选发现先经反证、再去重，才进最终台账；同一条证据可被多轮引用，但不算重复复现。本 skill 不适用于纯 bug 测试或一般性代码审查；获授权的只读系统架构/内容管线核查按 [系统架构与内容管线](references/system-architecture-pipeline.md) 的工程任务范围交付静态组织事实与未验证边界，不展开全面代码审查。
 
 ## 安装
 
@@ -22,11 +22,12 @@
 
 ```sh
 mkdir -p ~/.claude/skills
-git clone --branch v0.6.0 https://github.com/liuyejinghong/game-design-review.git ~/.claude/skills/game-design-review
+git clone --branch v0.7.0 https://github.com/liuyejinghong/game-design-review.git ~/.claude/skills/game-design-review
 ```
 
 - 其它宿主用各自配置的 skill 目录，例如 Codex 可以是 `~/.codex/skills/game-design-review`；具体目录、调用语法与子代理隔离以宿主为准，本仓库不会自动注册为服务。
 - 已有安装不要直接覆盖：按 [VERSIONING](VERSIONING.md) 核对本地改动并整包同步升级（VERSION、SKILL.md、附件与校验器一起换）。
+- 0.7.0 为正式发行版本，安装用上面的 `v0.7.0` 标签。已装 0.6.0 的目录要先按 [VERSIONING](VERSIONING.md) 核对本地改动，再整包切换到 v0.7.0（VERSION、SKILL.md、附件与校验器一起换，不混装新旧附件）；切换后新 run 记 report_schema 3，旧 schema 1/2 报告保留原结构、不回写。
 
 ## 调用
 
@@ -42,6 +43,16 @@ git clone --branch v0.6.0 https://github.com/liuyejinghong/game-design-review.gi
 
 > 用 game-design-review 复验新版新手引导：先按旧回归卡走固定路径，再让未见答案的执行者盲玩一次，两轨分开判定。
 
+没有可玩入口、只有设计材料（策划文档、机制说明、界面草图）也能发起，不会只回一句“无法评审”：先做设计材料审查（必要能力查漏、设计自洽），出设计层结论与验证范围决定，材料结论与实玩结论分开标注。两条短例（同样是任务模板，不是已跑过的实测）：
+
+> 用 game-design-review 审查这份只有设计文档和界面草图的模拟经营 MVP：先做材料审查，查必要能力与规格矛盾，再约定最小可玩核验通过后进深测。
+
+> 用 game-design-review 最小可玩核验这个刚接通核心动作的构建：确认正常入口、一个核心动作、状态响应与一条模块连接，本阶段不要求表现打磨。
+
+需要工程侧核查时，同样直接说出任务（条件附件，不随完整评审自动全量启用；同样是任务模板，不是已跑过的实测）：
+
+> 用 game-design-review 做系统架构与内容生产管线核查：这是 AI 迭代中的模拟经营，重点看内容定义与改动边界、规则组合、存档状态归属与时间结算一致性；黑盒证据先封存，源码只读，纯静态交付工程事实与未验证边界，本 run 不评分。
+
 ## 交付什么
 
 - **十节总报告**：一次运行只出一份。第 5 节是必需的能力对照表——关键模块即使没有 P 级问题也保留行，写清差距与建议；对照行只作定位，不另建第二问题台账。
@@ -49,7 +60,8 @@ git clone --branch v0.6.0 https://github.com/liuyejinghong/game-design-review.gi
 - **唯一问题台账**（`findings.md`）：所有候选发现去重成一份，同根问题跨条款只计一次；每条带证据、置信度与复验条件。
 - **亮点保护与回归**：成立的亮点要有证据，并落成改动后的回归检查卡。
 - **可选模块**：新用户首访盲玩、真人试玩方案（有真实记录才做校准）、体验回归，以及非官方媒体评分——"IGN 方法启发"的 1–10 整数档，非 IGN 产品，用户明确要求才给，且不给开发潜力加分。
-- **版本复现**：获归档授权时，run 记录（skill_version、skill_commit、game_build、report_schema 2、critic_scale 1 等；提交信息不可得时如实标未知，不伪造）与证据留在被评项目的 `docs/reviews/` 下；未获授权就只在会话里交付，不虚构证据文件。本仓库只保存协议，不附带游戏报告或玩家资料。
+- **分级推进**：run 记录含 `材料审查` 与 `验证范围决定` 两段——材料结论与实玩结论分开；范围决定（继续/限范围继续/暂停相关环节）是任务路由，不是可玩或发布认证。需要时按任务交接协议落成带复验条件的最小任务卡，任务交接完成不等于问题关闭。
+- **版本复现**：获归档授权时，run 记录（skill_version、skill_commit、game_build、report_schema 3、critic_scale 1 等；提交信息不可得时如实标未知，不伪造）与证据留在被评项目的 `docs/reviews/` 下；未获授权就只在会话里交付，不虚构证据文件。旧 schema 1/2 报告保留原结构不回写。本仓库只保存协议，不附带游戏报告或玩家资料。
 
 ## 能力与边界
 
@@ -70,11 +82,14 @@ git clone --branch v0.6.0 https://github.com/liuyejinghong/game-design-review.gi
 | 主入口、四把尺子与流程 | [SKILL.md](SKILL.md) |
 | 轮次编排与统一裁决 | [orchestration](references/orchestration.md)、[adjudication](references/adjudication.md) |
 | 能力对照主线的完整规则 | [capability-review](references/capability-review.md) |
+| 设计材料审查与最小可玩核验 | [development-readiness](references/development-readiness.md) |
+| 开发任务交接与复验 | [developer-handoff](references/developer-handoff.md) |
 | 选参照的线索库 | [benchmarks](references/benchmarks.md) |
 | 模拟经营：候选基准与专项测法 | [management-baseline](references/management-baseline.md)、[management-simulation](references/management-simulation.md) |
 | 3D 空间与操控专项 | [3d-gameplay](references/3d-gameplay.md) |
 | 首访 / 真人 / 回归 / 评分 | [first-visit](references/first-visit.md)、[human-playtest](references/human-playtest.md)、[experience-regression](references/experience-regression.md)、[critic-scoring](references/critic-scoring.md) |
 | 表现适配与转段路线 | [presentation-transition](references/presentation-transition.md) |
+| 系统架构与内容管线核查（SA01–SA08，条件加载） | [system-architecture-pipeline](references/system-architecture-pipeline.md) |
 | 来源核查记录 | [management-capability-study](research/management-capability-study.md)、[genre-baseline-transfer](research/genre-baseline-transfer.md) |
 
 经营基准由有限几款作品的一手/公开文档归纳（Surviving Mars、Anno 1800、Factorio，另补 Cities: Skylines 等样本），是候选起点而非行业普查；FPS 迁移研究同样只覆盖少量样本，也不比较手感与平衡。这些文档能证明能力存在，深度与手感仍需对目标实玩另证。
@@ -85,4 +100,4 @@ git clone --branch v0.6.0 https://github.com/liuyejinghong/game-design-review.gi
 python3 -I scripts/validate.py --self-test
 ```
 
-Python 3.9+，仅标准库；`-I` 为隔离模式，避免同名模块劫持。它校验整包静态契约（版本一致性、相对链接、主入口结构与编排路由、必需附件等），并对十八种损坏副本做负向自测，确认失配不会被放行。这是静态与合成检查，[tests/acceptance.md](tests/acceptance.md) 的验收场景也是合成走查：真实端到端仍需要可玩构建与授权存档。0.6.0 前的 schema 1 报告保留原结构；其他既有 run 也保留其实际 schema，不回写历史。
+Python 3.9+，仅标准库；`-I` 为隔离模式，避免同名模块劫持。它校验整包静态契约（版本一致性、相对链接、主入口结构与编排路由、必需附件等），并对多种损坏副本做负向自测（数量随契约扩展），确认失配不会被放行。这是静态与合成检查，[tests/acceptance.md](tests/acceptance.md) 的验收场景也是合成走查：真实端到端仍需要可玩构建与授权存档。旧 schema 1/2 报告保留原结构；其他既有 run 也保留其实际 schema，不回写历史。

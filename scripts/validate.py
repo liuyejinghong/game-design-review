@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 import re
 import shutil
@@ -19,9 +20,26 @@ REQUIRED = (
     'references/3d-gameplay.md', 'references/management-simulation.md',
     'references/capability-review.md', 'references/management-baseline.md',
     'research/management-capability-study.md', 'research/genre-baseline-transfer.md',
+    'references/development-readiness.md', 'references/developer-handoff.md',
+    'tests/staged-review-cases.md',
+    'references/system-architecture-pipeline.md', 'tests/system-architecture-cases.md',
 )
 TRIGGERS = ('游戏验收', '试玩评审', '好不好玩', '像不像个游戏', '策划视角评估', '游戏感评审',
-            '3D 游戏', '模拟经营', '模块功能')
+            '3D 游戏', '模拟经营', '模块功能', '设计材料审查', '最小可玩核验',
+            '系统架构', '内容生产管线', 'AI 扩展性')
+# 工具工作区与缓存不属于整包内容：扫描 Markdown 与自测副本时整棵跳过。
+SKIP_DIRS = frozenset(('.git', '.claude', '__pycache__'))
+
+
+def markdown_files(root: Path) -> list[Path]:
+    def fail(exc: OSError) -> None:
+        raise exc
+
+    found: list[Path] = []
+    for directory, dirnames, filenames in os.walk(root, onerror=fail):
+        dirnames[:] = [name for name in dirnames if name not in SKIP_DIRS]
+        found.extend(Path(directory, name) for name in filenames if name.endswith('.md'))
+    return found
 
 
 def check(root: Path) -> list[str]:
@@ -32,7 +50,7 @@ def check(root: Path) -> list[str]:
     if errors:
         return errors
     try:
-        texts = {p: p.read_text(encoding='utf-8') for p in root.rglob('*.md')}
+        texts = {p: p.read_text(encoding='utf-8') for p in markdown_files(root)}
         version = (root / 'VERSION').read_text(encoding='utf-8').strip()
     except (OSError, UnicodeError) as exc:
         return [f'读取失败：{exc}']
@@ -49,7 +67,7 @@ def check(root: Path) -> list[str]:
         errors.append('skill 名称改变或缺失')
     if not re.search(r'^metadata:\n  version: "' + re.escape(version) + r'"\n', front, re.M):
         errors.append('metadata.version 与 VERSION 不一致')
-    if '  report-schema: "2"' not in front:
+    if '  report-schema: "3"' not in front:
         errors.append('report-schema 与当前校验器契约不一致；升级时须同步校验器')
     match = re.search(r'^description: (.+)$', front, re.M)
     description = match.group(1) if match else ''
@@ -70,7 +88,9 @@ def check(root: Path) -> list[str]:
     for name in ('references/orchestration.md', 'references/adjudication.md',
                  'references/presentation-transition.md',
                  'references/capability-review.md', 'references/management-baseline.md',
-                 'references/3d-gameplay.md', 'references/management-simulation.md'):
+                 'references/3d-gameplay.md', 'references/management-simulation.md',
+                 'references/development-readiness.md', 'references/developer-handoff.md',
+                 'references/system-architecture-pipeline.md'):
         if f']({name})' not in skill:
             errors.append(f'主入口未直接连接：{name}')
     orchestration = texts[root / 'references/orchestration.md']
@@ -78,6 +98,8 @@ def check(root: Path) -> list[str]:
     adjudication = texts[root / 'references/adjudication.md']
     gameplay3d = texts[root / 'references/3d-gameplay.md']
     management = texts[root / 'references/management-simulation.md']
+    readiness = texts[root / 'references/development-readiness.md']
+    pipeline = texts[root / 'references/system-architecture-pipeline.md']
     for marker in ('| R09 表现适配与转段 |', '→ R05 → 按需 R09 → R06 → R07'):
         if marker not in orchestration:
             errors.append('R09 调用卡缺失或调度顺序改变')
@@ -87,7 +109,13 @@ def check(root: Path) -> list[str]:
                           ('3D 附件指针', '](3d-gameplay.md)'),
                           ('经营附件指针', '](management-simulation.md)'),
                           ('能力对照指针', '](capability-review.md)'),
-                          ('经营基准指针', '](management-baseline.md)')):
+                          ('经营基准指针', '](management-baseline.md)'),
+                          ('材料就绪指针', '](development-readiness.md)'),
+                          ('交接指针', '](developer-handoff.md)'),
+                          ('材料就绪请求行', '| 设计材料审查 / 最小可玩核验 |'),
+                          ('系统架构请求行', '| 系统架构 / 内容生产管线 / AI 扩展性 |'),
+                          ('系统架构指针', '](system-architecture-pipeline.md)'),
+                          ('R09 统一承载路由', 'SA01–SA08 由 R09 统一承载')):
         if marker not in orchestration:
             errors.append(f'编排缺{label}')
     for n in range(1, 11):
@@ -99,8 +127,20 @@ def check(root: Path) -> list[str]:
     for n in range(1, 13):
         if len(re.findall(r'^- \*\*MG' + f'{n:02}' + r' ', management, re.M)) != 1:
             errors.append(f'MG{n:02} 缺失或重复')
+    for n in range(1, 13):
+        if len(re.findall(r'^- \*\*CAP-' + f'{n:02}' + r' ', readiness, re.M)) != 1:
+            errors.append(f'CAP-{n:02} 缺失或重复')
+    for n in range(1, 9):
+        if len(re.findall(r'^- \*\*SA' + f'{n:02}' + r' ', pipeline, re.M)) != 1:
+            errors.append(f'SA{n:02} 缺失或重复')
+    for marker, label in (('本轮已启用的 R01–R05 黑盒证据封存后', '封存门控'),
+                          ('纯静态 SA', '纯静态边界')):
+        if marker not in pipeline:
+            errors.append(f'系统架构附件缺{label}说明')
     if '路线建议不计入 P0/P1/P2' not in adjudication:
         errors.append('路线决策与缺陷的分流约定缺失')
+    if 'E-SA-001' not in adjudication:
+        errors.append('证据台账缺工程证据类 E-SA-001')
     if '不安装引擎' not in presentation or '没有图形/客户端产物只能交计划' not in orchestration:
         errors.append('R09 只读或未实测边界缺失')
     if f'**{version}**' not in texts[root / 'README.md']:
@@ -123,10 +163,12 @@ def check(root: Path) -> list[str]:
 
 
 def self_test(root: Path) -> int:
-    """在临时副本破坏十八种契约，验证不会错误放行。"""
+    """在临时副本逐项破坏契约（种类数随契约扩展，此处不写死），验证不会错误放行。"""
     def replace_text(base: Path, name: str, old: str, new: str) -> None:
         target = base / name
         text = target.read_text(encoding='utf-8')
+        if old not in text:
+            raise LookupError(f'替换目标不存在：{name}')
         target.write_text(text.replace(old, new), encoding='utf-8')
 
     def append_text(base: Path, name: str, suffix: str) -> None:
@@ -157,17 +199,49 @@ def self_test(root: Path) -> int:
         '通用入口断开': lambda p: replace_text(p, 'SKILL.md',
             '](references/capability-review.md)', '](references/benchmarks.md)'),
         '报告schema失配': lambda p: replace_text(p, 'SKILL.md',
-            '  report-schema: "2"', '  report-schema: "1"'),
+            '  report-schema: "3"', '  report-schema: "2"'),
         'TD 条目重复': lambda p: append_text(p, 'references/3d-gameplay.md',
             '\n- **TD01 重复条目\n'),
         'MG 条目缺失': lambda p: replace_text(p, 'references/management-simulation.md',
             '- **MG05 ', '- **MGX05 '),
+        '开发就绪附件缺失': lambda p: (p / 'references/development-readiness.md').unlink(),
+        '开发交接附件缺失': lambda p: (p / 'references/developer-handoff.md').unlink(),
+        '开发就绪入口断开': lambda p: replace_text(p, 'SKILL.md',
+            '](references/development-readiness.md)', '](references/benchmarks.md)'),
+        '开发交接入口断开': lambda p: replace_text(p, 'SKILL.md',
+            '](references/developer-handoff.md)', '](references/benchmarks.md)'),
+        'CAP07 条目缺失': lambda p: replace_text(p, 'references/development-readiness.md',
+            '- **CAP-07 ', '- **CAP-X07 '),
+        'SA 附件缺失': lambda p: (p / 'references/system-architecture-pipeline.md').unlink(),
+        'SA 主入口断开': lambda p: replace_text(p, 'SKILL.md',
+            '](references/system-architecture-pipeline.md)', '](references/benchmarks.md)'),
+        'SA 请求行损坏': lambda p: replace_text(p, 'references/orchestration.md',
+            '| 系统架构 / 内容生产管线 / AI 扩展性 |', '| 系统架构 |'),
+        'SA 编排指针断开': lambda p: replace_text(p, 'references/orchestration.md',
+            '](system-architecture-pipeline.md)', '](benchmarks.md)'),
+        'R09 统一承载 marker 缺失': lambda p: replace_text(p, 'references/orchestration.md',
+            'SA01–SA08 由 R09 统一承载', 'SA01–SA08 由 R09 承载'),
+        'SA 条目重复': lambda p: append_text(p, 'references/system-architecture-pipeline.md',
+            '\n- **SA01 重复条目\n'),
+        'SA 条目缺失': lambda p: replace_text(p, 'references/system-architecture-pipeline.md',
+            '- **SA05 ', '- **SAX05 '),
+        'SA 封存门控 marker 缺失': lambda p: replace_text(p, 'references/system-architecture-pipeline.md',
+            '本轮已启用的 R01–R05 黑盒证据封存后', '黑盒证据封存后'),
+        'SA 纯静态 marker 缺失': lambda p: replace_text(p, 'references/system-architecture-pipeline.md',
+            '纯静态 SA', '纯静态分析'),
+        '工程证据类缺失': lambda p: replace_text(p, 'references/adjudication.md',
+            'E-SA-001', 'E-SX-001'),
+        'SA 输入附件缺失': lambda p: (p / 'tests/system-architecture-cases.md').unlink(),
     }
     for label, mutate in mutations.items():
         with tempfile.TemporaryDirectory() as directory:
             copy = Path(directory) / root.name
-            shutil.copytree(root, copy, ignore=shutil.ignore_patterns('.git', '__pycache__'))
-            mutate(copy)
+            shutil.copytree(root, copy, ignore=shutil.ignore_patterns(*SKIP_DIRS))
+            try:
+                mutate(copy)
+            except (LookupError, OSError) as exc:
+                print(f'失败：负向样例无法施加：{label}（{exc}）')
+                return 1
             if not check(copy.resolve()):
                 print(f'失败：负向样例被放行：{label}')
                 return 1
